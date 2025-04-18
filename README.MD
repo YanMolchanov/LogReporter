@@ -1,6 +1,6 @@
 # Асинхронный обработчик логов no import
 
-![img.png](img.png)
+![img_2.png](img_2.png)
 
 Проект создан в рамках выполнения
 [тестового задания](https://docs.google.com/document/d/1JbnXWtv85z96jxBKLpIxmxfdZt6G6xOyti9AWlNPt1A/edit?tab=t.0#heading=h.ge2y49g7qwcb).

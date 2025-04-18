@@ -16,13 +16,16 @@ pattern: str = r"000 (.+) django\.request: (GET|POST) (\/.+\/)"
 Заголовки - значения на основе которых формируется отчет.
 Именно по ним происходит парсинг логов
 '''
-headers: set[str] = {"HANDLER", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+headers: tuple = ("HANDLER", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 col_amt: int = len(headers)  #  Количество столбцов отчета
 f_col_w: int = 20  #  Ширина первого столбца отчета
 col_w: int = 10  #  Ширина остальных столбцов отчета
 
 slice_size: int = 1000  #  количество строк, на которое разбиваем загружаемый массив для поочередной обработки
 main_queue = Queue()
+
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
 
 def draw_report(rows, total_r: int, total_api_r: int) -> str:
     row: str = "{:>" + str(f_col_w) + "}" + ("{:>" + str(col_w) + "}") * (col_amt - 1)
@@ -37,14 +40,10 @@ def draw_report(rows, total_r: int, total_api_r: int) -> str:
 
 
 def process_slice(next_n_lines: str) -> (Counter, int):
-    #with open("logs/app_test.log", "r") as f:
-    #    f.readlines()
-    #    f = f.read()
     total_r = len(re.findall(pattern=r'\n', string=next_n_lines))
     result = re.findall(pattern=pattern, string=next_n_lines)
     result = [(x[0], x[2]) for x in result]
     data = Counter(result)
-    #print(data)
     return data, total_r
 
 
@@ -85,7 +84,7 @@ def read(filename: str, queue: Queue) -> None:
             x += 1
             next_n_lines = list(islice(f, slice_size))
             if not next_n_lines:
-                logging.info(f"Документ {filename} проанализирован!")
+                logging.debug(f"Документ {filename} проанализирован!")
                 break
             else:
                 data, total_r_new = process_slice("".join(next_n_lines))
@@ -102,10 +101,10 @@ def read_all(filenames: set[str]) -> str:
     threads = [threading.Thread(target=read, args=(filename, queue)) for filename in filenames]
     for thread in threads:
         thread.start()
-        logging.info(f'Запуск потоков в кол-ве {len(filenames)} шт.')
+    logging.debug(f'Запуск потоков в кол-ве {len(filenames)} шт.')
     for t in threads:
         t.join()
-        logging.info(f'Все потоки завершили свою работу.')
+    logging.debug(f'Все потоки завершили свою работу.')
     main_queue.put(finished)
     for output in iter(main_queue.get, finished):
         data, total_r_new = output.get()
@@ -129,7 +128,7 @@ if __name__ == '__main__':
     files = {'logs/app_test.log', 'logs/app1.log', 'logs/app0.log', 'logs/app3.log', 'logs/app2.log',}
     result = read_all(files)
     print(result)
-    print("\n--- finished in %s seconds ---" % (time.time() - start_time))
+    logging.debug("\n--- finished in %s seconds ---" % (time.time() - start_time))
 
 
 
