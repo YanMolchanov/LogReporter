@@ -16,7 +16,6 @@ fcol_w: int = 20  # Ширина первого столбца отчета
 col_w: int = 10  # Ширина остальных столбцов отчета
 headers: list[str] = ["HANDLER", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 col_amt: int = len(headers)  # Количество столбцов отчета
-
 chunksize: int = 1000  #  количество строк, на которое разбиваем загружаемый массив для поочередной загрузки
 skiprows: int = 0 * chunksize
 

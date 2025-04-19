@@ -3,3 +3,4 @@ logs/app_test.log
 __pycache__
 .idea
 main_sync.py
+reports/*

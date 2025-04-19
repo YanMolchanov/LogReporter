@@ -1,33 +1,28 @@
+import datetime
 import re
-from collections import Counter, defaultdict
-from itertools import islice
-from queue import Queue
+import os.path
 import threading
 import time
 import logging
+from collections import Counter, defaultdict
+from itertools import islice
+from queue import Queue
+from argparse import ArgumentParser
 
 
-'''
-Паттерн для regex, ожидаются запросы типа GET и POST
-Если в логах ожидаются другие типы запросов, добавьте их в группу (GET|POST)
-'''
-pattern: str = r"000 (.+) django\.request: (GET|POST) (\/.+\/)"
-'''
-Заголовки - значения на основе которых формируется отчет.
-Именно по ним происходит парсинг логов
-'''
-headers: tuple = ("HANDLER", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+pattern: str = r"000 (.+) django\.request: .+ (\/.+\/)" #  Паттерн regex
+headers: tuple = ("HANDLER", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL") #  Заголовки
 col_amt: int = len(headers)  #  Количество столбцов отчета
 f_col_w: int = 20  #  Ширина первого столбца отчета
 col_w: int = 10  #  Ширина остальных столбцов отчета
+slice_size: int = 1000  #  Количество строк, на которое разбиваем загружаемый массив для поочередной обработки
+main_queue: Queue = Queue() #  Главная очередь для сбора результатов работы потоков
 
-slice_size: int = 1000  #  количество строк, на которое разбиваем загружаемый массив для поочередной обработки
-main_queue = Queue()
 
-root = logging.getLogger()
-root.setLevel(logging.DEBUG)
-
-def draw_report(rows, total_r: int, total_api_r: int) -> str:
+def draw_report(rows: list,
+                total_r: int,
+                total_api_r: int) -> str:
+    #print(rows)
     row: str = "{:>" + str(f_col_w) + "}" + ("{:>" + str(col_w) + "}") * (col_amt - 1)
     rows: list = [headers] + rows
     body_str: str = "\n".join(row.format(*r) for r in rows)
@@ -40,44 +35,15 @@ def draw_report(rows, total_r: int, total_api_r: int) -> str:
 
 
 def process_slice(next_n_lines: str) -> (Counter, int):
-    total_r = len(re.findall(pattern=r'\n', string=next_n_lines))
+    total_r = len(re.findall(pattern=r'\d{4}-', string=next_n_lines))
     result = re.findall(pattern=pattern, string=next_n_lines)
-    result = [(x[0], x[2]) for x in result]
+    #result = [(x[0], x[2]) for x in result]
     data = Counter(result)
     return data, total_r
 
 
-def read_mono(filename):
-    api_r: Counter = Counter()
-    total_r: int = 0
-    total_api_r: int = 0
-    with open(filename) as f:
-        x = 0
-        while True:
-            x += 1
-            next_n_lines = list(islice(f, slice_size))
-            if not next_n_lines:
-                logging.warning(f"Документ {filename} проанализирован!")
-                break
-            else:
-                data, total_r_new = process_slice("".join(next_n_lines))
-                api_r.update(data)
-                total_api_r += data.total()
-                total_r = total_r + total_r_new
-                logging.warning(f"Chunk # {x} (lines {(x - 1)*slice_size} - {x*slice_size}) SUCCESS!")
-    dd = defaultdict(int, api_r)
-    handlers = list(set(x[1] for x in api_r.keys()))
-    handlers.sort()
-    rows = []
-    for hs in handlers:
-        row = [hs]
-        for hd in headers:
-            row.append(dd[(hd, hs)])
-        rows.append(row)
-    return draw_report(rows, total_r, total_api_r)
-
-
-def read(filename: str, queue: Queue) -> None:
+def read(filename: str,
+         queue: Queue) -> None:
     with open(filename) as f:
         x: int = 0
         while True:
@@ -96,7 +62,7 @@ def read_all(filenames: set[str]) -> str:
     api_r: Counter = Counter()
     total_r: int = 0
     total_api_r: int = 0
-    queue = Queue()
+    queue: Queue = Queue()
     finished = object()
     threads = [threading.Thread(target=read, args=(filename, queue)) for filename in filenames]
     for thread in threads:
@@ -117,18 +83,38 @@ def read_all(filenames: set[str]) -> str:
     rows = []
     for hs in handlers:
         row = [hs]
-        for hd in headers:
+        for hd in headers[1:]:
             row.append(dd[(hd, hs)])
         rows.append(row)
     return draw_report(rows, total_r, total_api_r)
 
 
-if __name__ == '__main__':
+def main():
     start_time = time.time()
-    files = {'logs/app_test.log', 'logs/app1.log', 'logs/app0.log', 'logs/app3.log', 'logs/app2.log',}
+    parser = ArgumentParser()
+    parser.add_argument('files',
+                        nargs='+')
+    parser.add_argument("--debug",
+                        help="Set log level to DEBUG")
+    parser.add_argument("--report",
+                        help="Report name",
+                        default=f"report {str(datetime.datetime.now().strftime(f"%Y-%m-%d %H%M%S"))}")
+    args = parser.parse_args()
+    if args.debug is not None:
+        root = logging.getLogger()
+        root.setLevel(logging.DEBUG)
+    files = set([f for f in args.files if os.path.isfile(f)])
+    for d in set(args.files).difference(set(files)):
+        logging.warning(f"Файл \'{d}\' не существует")
     result = read_all(files)
     print(result)
+    with open("reports/" + args.report, 'w') as rep:
+        rep.write(result)
     logging.debug("\n--- finished in %s seconds ---" % (time.time() - start_time))
+
+
+if __name__ == '__main__':
+    main()
 
 
 
