@@ -32,9 +32,11 @@
 
 Например:  `python main.py logs/app1.log logs/app2.log logs/app3.log`
 ![img_2.png](images/img_2.png)
+
 Также можно добавить аргумент `--debug` с любым не пустым значением для отображения логов при запуске программы. Например:
 `python main.py logs/app1.log logs/app2.log  --debug 1`
 ![img_3.png](images/img_3.png)
+
 Помимо вывода в консоль все отчеты сохраняются в папку reports по шаблону _'report %Y-%m-%d %H%M%S'_
 Также можно явно указать имя файла параметром _--report 'имя файла'_, например:
 `python main.py logs/app1.log  --debug 1 --report handlers`
@@ -47,8 +49,6 @@
 
 ![img_1.png](images/img_1.png)
 
-## Замечания и мысли:
-- Дополнительный уровень многопоточности на уровне process_slice не дал прироста скорости и был выброшен.
 
 ### Связаться со мной
 telegram [@YanMolchanov](https://t.me/YanMolchanov).
