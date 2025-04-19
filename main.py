@@ -22,7 +22,6 @@ main_queue: Queue = Queue() #  Главная очередь для сбора �
 def draw_report(rows: list,
                 total_r: int,
                 total_api_r: int) -> str:
-    #print(rows)
     row: str = "{:>" + str(f_col_w) + "}" + ("{:>" + str(col_w) + "}") * (col_amt - 1)
     rows: list = [headers] + rows
     body_str: str = "\n".join(row.format(*r) for r in rows)
